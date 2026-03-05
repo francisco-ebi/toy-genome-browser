@@ -1,0 +1,13 @@
+{
+  "name": "genome-browser-wasm-app",
+  "packageManager": "yarn@4.6.0",
+  "scripts": {
+    "dev": "vite"
+  },
+  "dependencies": {
+    "genome_browser_wasm": "file:../pkg",
+    "vite": "^7.3.1",
+    "vite-plugin-top-level-await": "^1.6.0",
+    "vite-plugin-wasm": "^3.5.0"
+  }
+}

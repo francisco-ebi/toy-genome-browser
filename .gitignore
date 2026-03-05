@@ -1,2 +1,4 @@
 /target
 .DS_Store
+www/.yarn/
+www/node_modules/
