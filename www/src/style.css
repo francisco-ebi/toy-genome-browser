@@ -101,3 +101,7 @@ button:focus-visible {
 #game-of-life-canvas {
   line-height: 8px;
 }
+
+#canvas {
+  border: 1px solid;
+}
