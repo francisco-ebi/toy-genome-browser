@@ -7,6 +7,7 @@
   "dependencies": {
     "d3": "^7.9.0",
     "genome_browser_wasm": "file:../pkg",
+    "rxjs": "^7.8.2",
     "vite": "^7.3.1",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0"
