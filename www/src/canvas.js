@@ -1,5 +1,5 @@
 import * as d3 from "d3";
-import { formatGenomicCoordinate } from "./utils";
+import { formatGenomicCoordinate, clamp } from "./utils";
 
 export class CanvasManager {
   canvasRef;
@@ -9,8 +9,9 @@ export class CanvasManager {
   regionEnd = 0;
   xScale;
   canvasScale = 0;
+  maxSize = 0;
 
-  constructor(canvasRef, region$) {
+  constructor(canvasRef, region$, chromSize$) {
     if (!!canvasRef) {
       this.canvasRef = canvasRef;
       this.ctxRef = canvasRef.getContext("2d");
@@ -22,6 +23,9 @@ export class CanvasManager {
         this.regionStart = newRegion.start;
         this.regionEnd = newRegion.end;
         this.regenerateScale();
+      });
+      chromSize$.subscribe((maxSize) => {
+        this.maxSize = maxSize;
       });
     } else {
       throw new Error("Invalid canvas ref");
@@ -53,21 +57,36 @@ export class CanvasManager {
     return (this.regionEnd - this.regionStart) / this.canvasRef.clientWidth;
   }
   updateZooming(e) {
-    this.canvasScale = this.viewportTransform.scale += e.deltaY * -0.01;
+    this.canvasScale += e.deltaY * -0.01;
+    console.log(this.canvasScale);
   }
-  updateRegion(deltaX) {
+  moveRegion(deltaX) {
     const bpDiff = Math.round(this.calculateResolution() * deltaX);
-    this.regionStart += bpDiff;
-    this.regionEnd += bpDiff;
+    this.regionStart = clamp(this.regionStart + bpDiff, 0, this.maxSize);
+    this.regionEnd = clamp(this.regionEnd + bpDiff, 0, this.maxSize);
+    this.regenerateScale();
+  }
+  updateRegionValues() {
+    this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
+    const currentBpWidth = this.regionEnd - this.regionStart;
+    const diff = currentBpWidth * 0.1;
+    if (this.canvasScale > 0) {
+      this.regionStart = clamp(this.regionStart + diff, 0, this.maxSize);
+      this.regionEnd = clamp(this.regionEnd - diff, 0, this.maxSize);
+    } else {
+      this.regionStart = clamp(this.regionStart - diff, 0, this.maxSize);
+      this.regionEnd = clamp(this.regionEnd + diff, 0, this.maxSize);
+    }
     this.regenerateScale();
   }
   onMouseMove = (e) => {
     const deltaX = e.clientX - this.startMovementX;
-    this.updateRegion(deltaX);
+    this.moveRegion(deltaX);
     this.render();
   };
   onMouseWheel = (e) => {
     this.updateZooming(e);
+    this.updateRegionValues();
     this.render();
   };
   drawXAxis(yPos, xExtent) {
@@ -98,11 +117,7 @@ export class CanvasManager {
     this.ctxRef.fillStyle = "black";
     xTicks.forEach((d) => {
       this.ctxRef.beginPath();
-      this.ctxRef.fillText(
-        formatGenomicCoordinate(d),
-        this.xScale(d),
-        yPos + tickSize,
-      );
+      this.ctxRef.fillText(d, this.xScale(d), yPos + tickSize);
     });
   }
   render() {

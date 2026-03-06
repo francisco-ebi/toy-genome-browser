@@ -8,3 +8,17 @@ export function formatGenomicCoordinate(value) {
     return `${+(value / 1000000).toFixed(2)} Mbp`;
   }
 }
+
+export function debounce(cb, wait) {
+  let timeoutId = null;
+  return (...args) => {
+    window.clearTimeout(timeoutId);
+    timeoutId = window.setTimeout(() => {
+      cb(...args);
+    }, wait);
+  };
+}
+
+export function clamp(number, min, max) {
+  return Math.max(min, Math.min(number, max));
+}
