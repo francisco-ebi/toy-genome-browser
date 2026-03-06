@@ -35,9 +35,6 @@ export class GenomeBrowser {
       this.selectedChrom = e.target.value;
     });
   }
-  calculateRes() {
-    return (this.endPos - this.startPos) / this.canvasWidth;
-  }
   async getGenePos() {
     const { start, end } = await find_gene_pos(
       this.selectedChrom,
