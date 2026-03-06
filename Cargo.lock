@@ -91,10 +91,13 @@ name = "genome-browser-wasm"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "js-sys",
  "serde",
  "serde_json",
  "wasm-bindgen",
+ "wasm-bindgen-futures",
  "wasm-bindgen-test",
+ "web-sys",
 ]
 
 [[package]]
