@@ -1,19 +1,32 @@
+import * as d3 from "d3";
+import { formatGenomicCoordinate } from "./utils";
+
 export class CanvasManager {
   canvasRef;
   ctxRef;
   previousX = 0;
-  onPosChange;
+  startMovementX = 0;
+  regionStart = 0;
+  regionEnd = 0;
   viewportTransform = {
     x: 0,
     scale: 1,
   };
+  xScale;
 
-  constructor(canvasRef, onPosChange) {
+  constructor(canvasRef, region$) {
     if (!!canvasRef) {
       this.canvasRef = canvasRef;
       this.ctxRef = canvasRef.getContext("2d");
-      this.onPosChange = onPosChange;
+      this.ctxRef.webkitImageSmoothingEnabled = false;
+      this.ctxRef.mozImageSmoothingEnabled = false;
+      this.ctxRef.imageSmoothingEnabled = false;
       this.setupListeners();
+      region$.subscribe((newRegion) => {
+        this.regionStart = newRegion.start;
+        this.regionEnd = newRegion.end;
+        this.regenerateScale();
+      });
     } else {
       throw new Error("Invalid canvas ref");
     }
@@ -21,23 +34,31 @@ export class CanvasManager {
   setupListeners() {
     this.canvasRef.addEventListener("mousedown", (e) => {
       this.previousX = e.clientX;
+      this.startMovementX = e.clientX;
       this.canvasRef.addEventListener("mousemove", this.onMouseMove);
     });
 
     this.canvasRef.addEventListener("mouseup", (e) => {
+      const deltaX = e.clientX - this.startMovementX;
       this.canvasRef.removeEventListener("mousemove", this.onMouseMove);
     });
 
     this.canvasRef.addEventListener("wheel", this.onMouseWheel);
   }
+  regenerateScale() {
+    this.xScale = d3.scaleLinear(
+      // domain
+      [this.regionStart, this.regionEnd],
+      // range
+      [0, this.canvasRef.clientWidth],
+    );
+    this.render();
+  }
+
   updatePanning(e) {
     const { clientX: localX } = e;
     this.viewportTransform.x += localX - this.previousX;
-    console.log({ deltaX: localX - this.previousX });
     this.previousX = localX;
-    if (this.onPosChange) {
-      this.onPosChange(this.viewportTransform.x);
-    }
   }
   updateZooming(e) {
     const { scale: oldScale, x: oldX } = this.viewportTransform;
@@ -49,9 +70,6 @@ export class CanvasManager {
       x: newX,
       scale: newScale,
     };
-    if (this.onPosChange) {
-      this.onPosChange(newX);
-    }
   }
   onMouseMove = (e) => {
     this.updatePanning(e);
@@ -61,6 +79,41 @@ export class CanvasManager {
     this.updateZooming(e);
     this.render();
   };
+  drawXAxis(yPos, xExtent) {
+    if (!this.xScale) {
+      return;
+    }
+    const [startX, endX] = xExtent;
+    const tickSize = 6;
+    const xTicks = this.xScale.ticks(10);
+
+    this.ctxRef.strokeStyle = "black";
+    this.ctxRef.beginPath();
+    xTicks.forEach((t) => {
+      this.ctxRef.moveTo(this.xScale(t), yPos);
+      this.ctxRef.lineTo(this.xScale(t), yPos + tickSize);
+    });
+    this.ctxRef.stroke();
+
+    this.ctxRef.beginPath();
+    this.ctxRef.moveTo(startX, yPos + tickSize);
+    this.ctxRef.lineTo(startX, yPos);
+    this.ctxRef.lineTo(endX, yPos);
+    this.ctxRef.lineTo(endX, yPos + tickSize);
+    this.ctxRef.stroke();
+
+    this.ctxRef.textAlign = "center";
+    this.ctxRef.textBaseline = "top";
+    this.ctxRef.fillStyle = "black";
+    xTicks.forEach((d) => {
+      this.ctxRef.beginPath();
+      this.ctxRef.fillText(
+        formatGenomicCoordinate(d),
+        this.xScale(d),
+        yPos + tickSize,
+      );
+    });
+  }
   drawRect(x, y, width, height, color) {
     this.ctxRef.fillStyle = color;
     this.ctxRef.fillRect(x, y, width, height);
@@ -71,7 +124,7 @@ export class CanvasManager {
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
     this.ctxRef.setTransform(scale, 0, 0, scale, x, 0);
 
-    this.drawRect(0, 0, 100, 100, "red");
     this.drawRect(200, 200, 100, 100, "blue");
+    this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
   }
 }
