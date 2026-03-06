@@ -2,15 +2,17 @@ export class CanvasManager {
   canvasRef;
   ctxRef;
   previousX = 0;
+  onPosChange;
   viewportTransform = {
     x: 0,
     scale: 1,
   };
 
-  constructor(canvasRef) {
+  constructor(canvasRef, onPosChange) {
     if (!!canvasRef) {
       this.canvasRef = canvasRef;
       this.ctxRef = canvasRef.getContext("2d");
+      this.onPosChange = onPosChange;
       this.setupListeners();
     } else {
       throw new Error("Invalid canvas ref");
@@ -31,7 +33,11 @@ export class CanvasManager {
   updatePanning(e) {
     const { clientX: localX } = e;
     this.viewportTransform.x += localX - this.previousX;
+    console.log({ deltaX: localX - this.previousX });
     this.previousX = localX;
+    if (this.onPosChange) {
+      this.onPosChange(this.viewportTransform.x);
+    }
   }
   updateZooming(e) {
     const { scale: oldScale, x: oldX } = this.viewportTransform;
@@ -43,6 +49,9 @@ export class CanvasManager {
       x: newX,
       scale: newScale,
     };
+    if (this.onPosChange) {
+      this.onPosChange(newX);
+    }
   }
   onMouseMove = (e) => {
     this.updatePanning(e);
