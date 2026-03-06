@@ -2,10 +2,8 @@ export class CanvasManager {
   canvasRef;
   ctxRef;
   previousX = 0;
-  previousY = 0;
   viewportTransform = {
     x: 0,
-    y: 0,
     scale: 1,
   };
 
@@ -21,7 +19,6 @@ export class CanvasManager {
   setupListeners() {
     this.canvasRef.addEventListener("mousedown", (e) => {
       this.previousX = e.clientX;
-      this.previousY = e.clientY;
       this.canvasRef.addEventListener("mousemove", this.onMouseMove);
     });
 
@@ -32,22 +29,18 @@ export class CanvasManager {
     this.canvasRef.addEventListener("wheel", this.onMouseWheel);
   }
   updatePanning(e) {
-    const { clientX: localX, clientY: localY } = e;
+    const { clientX: localX } = e;
     this.viewportTransform.x += localX - this.previousX;
-    this.viewportTransform.y += localY - this.previousY;
     this.previousX = localX;
-    this.previousY = localY;
   }
   updateZooming(e) {
-    const { scale: oldScale, x: oldX, y: oldY } = this.viewportTransform;
-    const { clientX: localX, clientY: localY } = e;
+    const { scale: oldScale, x: oldX } = this.viewportTransform;
+    const { clientX: localX } = e;
 
     const newScale = (this.viewportTransform.scale += e.deltaY * -0.01);
     const newX = localX - (localX - oldX) * (newScale / oldScale);
-    const newY = localY - (localY - oldY) * (newScale / oldScale);
     this.viewportTransform = {
       x: newX,
-      y: newY,
       scale: newScale,
     };
   }
@@ -64,10 +57,10 @@ export class CanvasManager {
     this.ctxRef.fillRect(x, y, width, height);
   }
   render() {
-    const { scale, x, y } = this.viewportTransform;
+    const { scale, x } = this.viewportTransform;
     this.ctxRef.setTransform(1, 0, 0, 1, 0, 0);
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
-    this.ctxRef.setTransform(scale, 0, 0, scale, x, y);
+    this.ctxRef.setTransform(scale, 0, 0, scale, x, 0);
 
     this.drawRect(0, 0, 100, 100, "red");
     this.drawRect(200, 200, 100, 100, "blue");
