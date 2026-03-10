@@ -22,6 +22,7 @@ export class CanvasManager {
       this.ctxRef.mozImageSmoothingEnabled = false;
       this.ctxRef.imageSmoothingEnabled = false;
       this.setupListeners();
+      this.setupRetinaScreens();
       region$.subscribe(({ start, end }) => {
         const margin = (end - start) * 0.2;
         this.viewStart = start - margin;
@@ -51,6 +52,14 @@ export class CanvasManager {
     });
 
     this.canvasRef.addEventListener("wheel", this.onMouseWheel);
+  }
+  setupRetinaScreens() {
+    const ratio = window.devicePixelRatio || 1;
+    this.canvasRef.style.width = `${this.canvasRef.width}px`;
+    this.canvasRef.style.height = `${this.canvasRef.height}px`;
+    this.canvasRef.width *= ratio;
+    this.canvasRef.height *= ratio;
+    this.ctxRef.scale(ratio, ratio);
   }
   regenerateScale() {
     this.xScale = d3.scaleLinear(
