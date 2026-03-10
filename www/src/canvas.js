@@ -5,8 +5,10 @@ export class CanvasManager {
   canvasRef;
   ctxRef;
   startMovementX = 0;
-  regionStart = 0;
-  regionEnd = 0;
+  viewStart = 0;
+  viewEnd = 0;
+  geneRegionStart = 0;
+  geneRegionEnd = 0;
   xScale;
   canvasScale = 0;
   maxSize = 0;
@@ -19,9 +21,18 @@ export class CanvasManager {
       this.ctxRef.mozImageSmoothingEnabled = false;
       this.ctxRef.imageSmoothingEnabled = false;
       this.setupListeners();
-      region$.subscribe((newRegion) => {
-        this.regionStart = newRegion.start;
-        this.regionEnd = newRegion.end;
+      region$.subscribe(({ start, end }) => {
+        const margin = (end - start) * 0.2;
+        this.viewStart = start - margin;
+        this.viewEnd = end + margin;
+        this.geneRegionStart = start;
+        this.geneRegionEnd = end;
+        console.log({
+          viewStart: this.viewStart,
+          viewEnd: this.viewEnd,
+          geneStart: this.geneRegionStart,
+          geneEnd: this.geneRegionEnd,
+        });
         this.regenerateScale();
       });
       chromSize$.subscribe((maxSize) => {
@@ -46,7 +57,7 @@ export class CanvasManager {
   regenerateScale() {
     this.xScale = d3.scaleLinear(
       // domain
-      [this.regionStart, this.regionEnd],
+      [this.viewStart, this.viewEnd],
       // range
       [0, this.canvasRef.clientWidth],
     );
@@ -54,7 +65,7 @@ export class CanvasManager {
     this.render();
   }
   calculateResolution() {
-    return (this.regionEnd - this.regionStart) / this.canvasRef.clientWidth;
+    return (this.viewEnd - this.viewStart) / this.canvasRef.clientWidth;
   }
   updateZooming(e) {
     this.canvasScale += e.deltaY * -0.01;
@@ -62,20 +73,20 @@ export class CanvasManager {
   }
   moveRegion(deltaX) {
     const bpDiff = Math.round(this.calculateResolution() * deltaX);
-    this.regionStart = clamp(this.regionStart + bpDiff, 0, this.maxSize);
-    this.regionEnd = clamp(this.regionEnd + bpDiff, 0, this.maxSize);
+    this.viewStart = clamp(this.viewStart + bpDiff, 0, this.maxSize);
+    this.viewEnd = clamp(this.viewEnd + bpDiff, 0, this.maxSize);
     this.regenerateScale();
   }
   updateRegionValues() {
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
-    const currentBpWidth = this.regionEnd - this.regionStart;
+    const currentBpWidth = this.viewEnd - this.viewStart;
     const diff = currentBpWidth * 0.1;
     if (this.canvasScale > 0) {
-      this.regionStart = clamp(this.regionStart + diff, 0, this.maxSize);
-      this.regionEnd = clamp(this.regionEnd - diff, 0, this.maxSize);
+      this.viewStart = clamp(this.viewStart + diff, 0, this.maxSize);
+      this.viewEnd = clamp(this.viewEnd - diff, 0, this.maxSize);
     } else {
-      this.regionStart = clamp(this.regionStart - diff, 0, this.maxSize);
-      this.regionEnd = clamp(this.regionEnd + diff, 0, this.maxSize);
+      this.viewStart = clamp(this.viewStart - diff, 0, this.maxSize);
+      this.viewEnd = clamp(this.viewEnd + diff, 0, this.maxSize);
     }
     this.regenerateScale();
   }
@@ -120,7 +131,22 @@ export class CanvasManager {
       this.ctxRef.fillText(d, this.xScale(d), yPos + tickSize);
     });
   }
+  drawGenePositionLineBoundaries() {
+    const canvasHeight = this.canvasRef.height;
+    this.ctxRef.beginPath();
+    this.ctxRef.setLineDash([20, 5]);
+    this.ctxRef.moveTo(this.xScale(this.geneRegionStart), 0);
+    this.ctxRef.lineTo(this.xScale(this.geneRegionStart), canvasHeight);
+    this.ctxRef.stroke();
+    this.ctxRef.moveTo(this.xScale(this.geneRegionEnd), 0);
+    this.ctxRef.lineTo(this.xScale(this.geneRegionEnd), canvasHeight);
+    this.ctxRef.stroke();
+    this.ctxRef.setLineDash([]);
+  }
   render() {
     this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
+    if (this.geneRegionStart !== 0 && this.geneRegionEnd !== 0) {
+      this.drawGenePositionLineBoundaries();
+    }
   }
 }
