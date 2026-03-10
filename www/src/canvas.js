@@ -12,8 +12,9 @@ export class CanvasManager {
   xScale;
   canvasScale = 0;
   maxSize = 0;
+  geneExons = [];
 
-  constructor(canvasRef, region$, chromSize$) {
+  constructor(canvasRef, region$, chromSize$, exons$) {
     if (!!canvasRef) {
       this.canvasRef = canvasRef;
       this.ctxRef = canvasRef.getContext("2d");
@@ -27,16 +28,13 @@ export class CanvasManager {
         this.viewEnd = end + margin;
         this.geneRegionStart = start;
         this.geneRegionEnd = end;
-        console.log({
-          viewStart: this.viewStart,
-          viewEnd: this.viewEnd,
-          geneStart: this.geneRegionStart,
-          geneEnd: this.geneRegionEnd,
-        });
         this.regenerateScale();
       });
       chromSize$.subscribe((maxSize) => {
         this.maxSize = maxSize;
+      });
+      exons$.subscribe((exons) => {
+        this.geneExons = exons;
       });
     } else {
       throw new Error("Invalid canvas ref");
@@ -64,15 +62,14 @@ export class CanvasManager {
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
     this.render();
   }
-  calculateResolution() {
+  getDataResolution() {
     return (this.viewEnd - this.viewStart) / this.canvasRef.clientWidth;
   }
   updateZooming(e) {
     this.canvasScale += e.deltaY * -0.01;
-    console.log(this.canvasScale);
   }
   moveRegion(deltaX) {
-    const bpDiff = Math.round(this.calculateResolution() * deltaX);
+    const bpDiff = Math.round(this.getDataResolution() * deltaX);
     this.viewStart = clamp(this.viewStart + bpDiff, 0, this.maxSize);
     this.viewEnd = clamp(this.viewEnd + bpDiff, 0, this.maxSize);
     this.regenerateScale();
@@ -143,10 +140,14 @@ export class CanvasManager {
     this.ctxRef.stroke();
     this.ctxRef.setLineDash([]);
   }
+  drawGene() {
+    console.log(this.getDataResolution());
+  }
   render() {
     this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
     if (this.geneRegionStart !== 0 && this.geneRegionEnd !== 0) {
       this.drawGenePositionLineBoundaries();
     }
+    this.drawGene();
   }
 }

@@ -1,6 +1,6 @@
 import { BehaviorSubject, Subject } from "rxjs";
 import chromSizes from "./mm39-chrom-sizes.json";
-import { find_gene_pos } from "genome_browser_wasm";
+import { find_gene_pos, get_all_gene_exons } from "genome_browser_wasm";
 
 export class GenomeBrowser {
   canvasWidth;
@@ -10,6 +10,7 @@ export class GenomeBrowser {
   chromSize$ = new BehaviorSubject(
     chromSizes.find((chr) => chr.name === "chr1").size,
   );
+  exons$ = new Subject();
   selectedChrom = "chr1";
   selectedGene = "Agap1";
 
@@ -17,6 +18,7 @@ export class GenomeBrowser {
     this.canvasWidth = canvasWidth;
     this.setupChrSelector();
     this.getGenePos();
+    this.getGeneExons();
   }
 
   get region() {
@@ -24,6 +26,9 @@ export class GenomeBrowser {
   }
   get chromSize() {
     return this.chromSize$;
+  }
+  get exons() {
+    return this.exons$;
   }
   setupChrSelector() {
     const chromosomeSelector = document.querySelector("#chromosome-selector");
@@ -52,6 +57,13 @@ export class GenomeBrowser {
     this.startPos = start;
     this.endPos = end;
     this.region$.next({ start, end });
-    console.log({ start, end });
+  }
+  async getGeneExons() {
+    const exons = await get_all_gene_exons(
+      this.selectedChrom,
+      this.selectedGene,
+    );
+    exons.forEach((e) => console.log({ start: e.start, end: e.end }));
+    this.exons$.next(exons);
   }
 }

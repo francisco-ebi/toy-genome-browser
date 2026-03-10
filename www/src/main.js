@@ -9,5 +9,6 @@ const canvasMng = new CanvasManager(
   canvasRef,
   browser.region,
   browser.chromSize,
+  browser.exons,
 );
 canvasMng.render();
