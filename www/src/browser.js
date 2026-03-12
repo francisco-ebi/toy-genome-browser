@@ -63,7 +63,6 @@ export class GenomeBrowser {
       this.selectedChrom,
       this.selectedGene,
     );
-    exons.forEach((e) => console.log({ start: e.start, end: e.end }));
     this.exons$.next(exons);
   }
 }

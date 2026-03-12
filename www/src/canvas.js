@@ -10,7 +10,7 @@ export class CanvasManager {
   geneRegionStart = 0;
   geneRegionEnd = 0;
   xScale;
-  canvasScale = 0;
+  zoomDirection = 0;
   maxSize = 0;
   geneExons = [];
 
@@ -35,7 +35,8 @@ export class CanvasManager {
         this.maxSize = maxSize;
       });
       exons$.subscribe((exons) => {
-        this.geneExons = exons;
+        this.geneExons = exons.toSorted((e1, e2) => e1.start - e2.start);
+        this.render();
       });
     } else {
       throw new Error("Invalid canvas ref");
@@ -75,7 +76,7 @@ export class CanvasManager {
     return (this.viewEnd - this.viewStart) / this.canvasRef.clientWidth;
   }
   updateZooming(e) {
-    this.canvasScale += e.deltaY * -0.01;
+    this.zoomDirection = e.deltaY > 0 ? 1 : -1;
   }
   moveRegion(deltaX) {
     const bpDiff = Math.round(this.getDataResolution() * deltaX);
@@ -83,17 +84,24 @@ export class CanvasManager {
     this.viewEnd = clamp(this.viewEnd + bpDiff, 0, this.maxSize);
     this.regenerateScale();
   }
-  updateRegionValues() {
+  updateRegionValues(xPos) {
+    const cursorPosInitial = this.viewStart + xPos * this.getDataResolution();
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
     const currentBpWidth = this.viewEnd - this.viewStart;
     const diff = currentBpWidth * 0.1;
-    if (this.canvasScale > 0) {
+    if (this.zoomDirection > 0) {
       this.viewStart = clamp(this.viewStart + diff, 0, this.maxSize);
       this.viewEnd = clamp(this.viewEnd - diff, 0, this.maxSize);
     } else {
       this.viewStart = clamp(this.viewStart - diff, 0, this.maxSize);
       this.viewEnd = clamp(this.viewEnd + diff, 0, this.maxSize);
     }
+    const cursorPosFinal = this.viewStart + xPos * this.getDataResolution();
+    /* console.log({
+      cursorPosFinal,
+      cursorPosInitial,
+      diff: cursorPosFinal - cursorPosInitial,
+    }); */
     this.regenerateScale();
   }
   onMouseMove = (e) => {
@@ -103,7 +111,7 @@ export class CanvasManager {
   };
   onMouseWheel = (e) => {
     this.updateZooming(e);
-    this.updateRegionValues();
+    this.updateRegionValues(e.clientX);
     this.render();
   };
   drawXAxis(yPos, xExtent) {
@@ -134,7 +142,11 @@ export class CanvasManager {
     this.ctxRef.fillStyle = "black";
     xTicks.forEach((d) => {
       this.ctxRef.beginPath();
-      this.ctxRef.fillText(d, this.xScale(d), yPos + tickSize);
+      this.ctxRef.fillText(
+        d.toLocaleString("en-US"),
+        this.xScale(d),
+        yPos + tickSize,
+      );
     });
   }
   drawGenePositionLineBoundaries() {
@@ -149,14 +161,50 @@ export class CanvasManager {
     this.ctxRef.stroke();
     this.ctxRef.setLineDash([]);
   }
-  drawGene() {
-    console.log(this.getDataResolution());
+  drawGenePosition() {
+    this.ctxRef.beginPath();
+    const xStart = this.xScale(this.geneRegionStart);
+    const width = this.xScale(this.geneRegionEnd) - xStart;
+    this.ctxRef.rect(xStart, 30, width, 10);
+    this.ctxRef.fill();
+  }
+  drawExons() {
+    if (this.geneExons.length) {
+      this.ctxRef.beginPath();
+      if (this.geneExons?.[0].start > this.geneRegionStart) {
+        this.ctxRef.moveTo(this.xScale(this.geneRegionStart), 45);
+        this.ctxRef.lineTo(this.xScale(this.geneExons?.[0].start), 45);
+        this.ctxRef.stroke();
+      }
+      this.geneExons.forEach((exon, index) => {
+        const exonStart = this.xScale(exon.start);
+        const exonEnd = this.xScale(exon.end);
+        const width = exonEnd - exonStart;
+        this.ctxRef.rect(exonStart, 30, width, 20);
+        this.ctxRef.fill();
+        let nextExonStart = this.geneExons[index + 1]?.start;
+        if (nextExonStart) {
+          nextExonStart = this.xScale(nextExonStart);
+          this.ctxRef.moveTo(exonEnd, 40);
+          this.ctxRef.lineTo(nextExonStart, 40);
+          this.ctxRef.stroke();
+        }
+      });
+    }
+  }
+  drawFeatures() {
+    const currentRes = this.getDataResolution();
+    if (currentRes >= 400) {
+      this.drawGenePosition();
+    } else if (currentRes >= 0.1) {
+      this.drawExons();
+    }
   }
   render() {
     this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
     if (this.geneRegionStart !== 0 && this.geneRegionEnd !== 0) {
       this.drawGenePositionLineBoundaries();
     }
-    this.drawGene();
+    this.drawFeatures();
   }
 }
