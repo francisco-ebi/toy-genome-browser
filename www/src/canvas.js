@@ -85,10 +85,10 @@ export class CanvasManager {
     this.regenerateScale();
   }
   updateRegionValues(xPos) {
-    const cursorPosInitial = this.viewStart + xPos * this.getDataResolution();
+    // const cursorPosInitial = this.viewStart + xPos * this.getDataResolution();
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
     const currentBpWidth = this.viewEnd - this.viewStart;
-    const diff = currentBpWidth * 0.1;
+    const diff = currentBpWidth * 0.005;
     if (this.zoomDirection > 0) {
       this.viewStart = clamp(this.viewStart + diff, 0, this.maxSize);
       this.viewEnd = clamp(this.viewEnd - diff, 0, this.maxSize);
@@ -106,7 +106,7 @@ export class CanvasManager {
   }
   onMouseMove = (e) => {
     const deltaX = e.clientX - this.startMovementX;
-    this.moveRegion(deltaX);
+    this.moveRegion(deltaX * 0.1);
     this.render();
   };
   onMouseWheel = (e) => {
