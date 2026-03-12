@@ -1,6 +1,16 @@
-import { BehaviorSubject, Subject } from "rxjs";
+import {
+  BehaviorSubject,
+  Subject,
+  debounceTime,
+  concatMap,
+  concat,
+} from "rxjs";
 import chromSizes from "./mm39-chrom-sizes.json";
-import { find_gene_pos, get_all_gene_exons } from "genome_browser_wasm";
+import {
+  find_gene_pos,
+  get_all_gene_exons,
+  get_genes_by_pos,
+} from "genome_browser_wasm";
 
 export class GenomeBrowser {
   canvasWidth;
@@ -13,6 +23,8 @@ export class GenomeBrowser {
   exons$ = new Subject();
   selectedChrom = "chr1";
   selectedGene = "Agap1";
+  onPosChange$;
+  genes$ = new Subject();
 
   constructor(canvasWidth) {
     this.canvasWidth = canvasWidth;
@@ -29,6 +41,9 @@ export class GenomeBrowser {
   }
   get exons() {
     return this.exons$;
+  }
+  get onNewGenes() {
+    return this.genes$;
   }
   setupChrSelector() {
     const chromosomeSelector = document.querySelector("#chromosome-selector");
@@ -64,5 +79,30 @@ export class GenomeBrowser {
       this.selectedGene,
     );
     this.exons$.next(exons);
+  }
+  async getGenesByPos(start, end) {
+    const genes = await get_genes_by_pos(this.selectedChrom, start, end);
+    return genes.map((g) => {
+      return {
+        name: g.name,
+        start: g.start,
+        end: g.end,
+        strand: g.strand,
+        exons: g.transcripts.flatMap((t) =>
+          t.exons.map(([start, end]) => ({ start, end })),
+        ),
+      };
+    });
+  }
+  setupPosListener(obs$) {
+    if (obs$) {
+      return concat(
+        obs$.pipe(
+          debounceTime(200),
+          concatMap(({ start, end }) => this.getGenesByPos(start, end)),
+        ),
+        this.genes$,
+      );
+    }
   }
 }

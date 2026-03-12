@@ -12,7 +12,12 @@ const canvasMng = new CanvasManager(
   browser.chromSize,
   browser.exons,
 );
+
+const geneObs$ = browser.setupPosListener(canvasMng.onViewUpdate);
+canvasMng.setupGeneListener(geneObs$);
+
 canvasMng.onViewUpdate.subscribe(({ start, end }) => {
   regionRef.innerHTML = `${start.toLocaleString("en-US")} - ${end.toLocaleString("en-US")}`;
 });
+
 canvasMng.render();

@@ -2,6 +2,13 @@ import * as d3 from "d3";
 import { clamp } from "./utils";
 import { BehaviorSubject } from "rxjs";
 
+const GENE_Y_POS = 20;
+const GENE_HEIGHT = 20;
+const INTRON_Y_POS = 40;
+const EXON_Y_POS = 30;
+const EXON_HEIGHT = 20;
+const MARKER_SYMBOL_Y_POS = 52;
+
 export class CanvasManager {
   canvasRef;
   ctxRef;
@@ -15,6 +22,7 @@ export class CanvasManager {
   maxSize = 0;
   geneExons = [];
   view$ = new BehaviorSubject({ start: this.viewStart, end: this.viewEnd });
+  genes = [];
 
   constructor(canvasRef, region$, chromSize$, exons$) {
     if (!!canvasRef) {
@@ -65,6 +73,20 @@ export class CanvasManager {
     this.canvasRef.width *= ratio;
     this.canvasRef.height *= ratio;
     this.ctxRef.scale(ratio, ratio);
+  }
+  setupGeneListener(geneObs$) {
+    if (geneObs$) {
+      geneObs$.subscribe((newGenes) => {
+        this.genes = newGenes;
+        this.ctxRef.clearRect(
+          0,
+          0,
+          this.canvasRef.width,
+          this.canvasRef.height,
+        );
+        this.render();
+      });
+    }
   }
   regenerateScale() {
     this.xScale = d3.scaleLinear(
@@ -161,81 +183,92 @@ export class CanvasManager {
       );
     });
   }
-  drawGenePositionLineBoundaries() {
-    const canvasHeight = this.canvasRef.height;
-    this.ctxRef.beginPath();
-    this.ctxRef.setLineDash([20, 5]);
-    this.ctxRef.moveTo(this.xScale(this.geneRegionStart), 0);
-    this.ctxRef.lineTo(this.xScale(this.geneRegionStart), canvasHeight);
-    this.ctxRef.stroke();
-    this.ctxRef.moveTo(this.xScale(this.geneRegionEnd), 0);
-    this.ctxRef.lineTo(this.xScale(this.geneRegionEnd), canvasHeight);
-    this.ctxRef.stroke();
-    this.ctxRef.setLineDash([]);
-  }
-  drawGenePosition() {
-    this.ctxRef.beginPath();
-    const xStart = this.xScale(this.geneRegionStart);
-    const width = this.xScale(this.geneRegionEnd) - xStart;
-    this.ctxRef.rect(xStart, 30, width, 10);
-    this.ctxRef.fill();
+  drawGenesBoxes() {
+    if (this.xScale) {
+      this.genes.forEach((gene, index) => {
+        this.ctxRef.beginPath();
+        const xStart = this.xScale(gene.start);
+        const width = this.xScale(gene.end) - xStart;
+        this.ctxRef.rect(xStart, GENE_Y_POS * (index + 1), width, GENE_HEIGHT);
+        this.ctxRef.fill();
+      });
+    }
   }
   drawExons() {
-    if (this.geneExons.length && this.xScale) {
-      this.ctxRef.beginPath();
-      // if first exon doesn't start in start pos of gene, draw line
-      if (this.geneExons?.[0].start > this.geneRegionStart) {
-        this.ctxRef.moveTo(this.xScale(this.geneRegionStart), 45);
-        this.ctxRef.lineTo(this.xScale(this.geneExons?.[0].start), 45);
-        this.ctxRef.stroke();
-      }
-      this.geneExons.forEach((exon, index) => {
-        const exonStart = this.xScale(exon.start);
-        const exonEnd = this.xScale(exon.end);
-        const width = exonEnd - exonStart;
-        this.ctxRef.rect(exonStart, 30, width, 20);
-        this.ctxRef.fill();
-        let nextExonStart = this.geneExons[index + 1]?.start;
-        if (nextExonStart) {
-          nextExonStart = this.xScale(nextExonStart);
-          this.ctxRef.moveTo(exonEnd, 40);
-          this.ctxRef.lineTo(nextExonStart, 40);
+    if (this.xScale) {
+      this.genes.forEach((gene, index) => {
+        this.ctxRef.beginPath();
+        // if first exon doesn't start in start pos of gene, draw line
+        if (gene.exons[0].start > gene.start) {
+          this.ctxRef.moveTo(
+            this.xScale(gene.start),
+            INTRON_Y_POS * (index + 1),
+          );
+          this.ctxRef.lineTo(
+            this.xScale(gene.exons[0].start),
+            INTRON_Y_POS * (index + 1),
+          );
+          this.ctxRef.stroke();
+        }
+        gene.exons.forEach((exon, exonIndex) => {
+          const exonStart = this.xScale(exon.start);
+          const exonEnd = this.xScale(exon.end);
+          const width = exonEnd - exonStart;
+          this.ctxRef.rect(
+            exonStart,
+            EXON_Y_POS * (index + 1),
+            width,
+            EXON_HEIGHT,
+          );
+          this.ctxRef.fill();
+          let nextExonStart = gene.exons[exonIndex + 1]?.start;
+          if (nextExonStart) {
+            nextExonStart = this.xScale(nextExonStart);
+            this.ctxRef.moveTo(exonEnd, INTRON_Y_POS * (index + 1));
+            this.ctxRef.lineTo(nextExonStart, INTRON_Y_POS * (index + 1));
+            this.ctxRef.stroke();
+          }
+        });
+        // if last exon doesn't end in end pos of gene, draw line
+        if (gene.exons[gene.exons.length - 1].end < gene.end) {
+          const lastExonEnd = gene.exons[gene.exons.length - 1].end;
+          this.ctxRef.moveTo(
+            this.xScale(lastExonEnd),
+            INTRON_Y_POS * (index + 1),
+          );
+          this.ctxRef.lineTo(this.xScale(gene.end), INTRON_Y_POS * (index + 1));
           this.ctxRef.stroke();
         }
       });
-      // if last exon doesn't end in end pos of gene, draw line
-      if (this.geneExons[this.geneExons.length - 1].end < this.geneRegionEnd) {
-        const lastExonEnd = this.geneExons[this.geneExons.length - 1].end;
-        this.ctxRef.moveTo(this.xScale(lastExonEnd), 40);
-        this.ctxRef.lineTo(this.xScale(this.geneRegionEnd), 40);
-        this.ctxRef.stroke();
-      }
     }
   }
-  drawGeneName() {
+  drawGeneNames() {
     if (this.xScale) {
-      this.ctxRef.beginPath();
-      this.ctxRef.textAlign = "start";
-      this.ctxRef.textBaseline = "top";
-      this.ctxRef.fillStyle = "black";
-      const textXPos = Math.max(this.geneRegionStart, this.viewStart);
-      this.ctxRef.fillText("Agap1", this.xScale(textXPos), 52);
+      this.genes.forEach((gene, index) => {
+        this.ctxRef.beginPath();
+        this.ctxRef.textAlign = "start";
+        this.ctxRef.textBaseline = "top";
+        this.ctxRef.fillStyle = "black";
+        const textXPos = Math.max(gene.start, this.viewStart);
+        this.ctxRef.fillText(
+          gene.name,
+          this.xScale(textXPos),
+          MARKER_SYMBOL_Y_POS * (index + 1),
+        );
+      });
     }
   }
   drawFeatures() {
     const currentRes = this.getDataResolution();
     if (currentRes >= 400) {
-      this.drawGenePosition();
+      this.drawGenesBoxes();
     } else {
       this.drawExons();
     }
-    this.drawGeneName();
+    this.drawGeneNames();
   }
   render() {
     this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
-    if (this.geneRegionStart !== 0 && this.geneRegionEnd !== 0) {
-      this.drawGenePositionLineBoundaries();
-    }
     this.drawFeatures();
   }
 }
