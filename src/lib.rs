@@ -73,3 +73,12 @@ pub async fn get_all_gene_exons(chr_name: &str, marker_symbol: &str) -> Result<V
     Ok(Vec::new())
   }
 }
+#[wasm_bindgen]
+pub async fn get_genes_by_pos(chr_name: &str, start: u32, end: u32) -> Result<JsValue, JsValue> {
+  let url = format!("/chromosome-data/{}.bin", chr_name);
+  let data: Vec<u8> = fetch_bin_data(url).await?;
+  let gene_list: Vec<Gene> = bincode::deserialize(&data)
+      .map_err(|e| JsValue::from_str(&format!("bincode error: {e}")))?;
+  let filtered_genes: Vec<Gene> = gene_list.into_iter().filter(|g| g.start <= end && g.end >= start).collect();
+  return Ok(serde_wasm_bindgen::to_value(&filtered_genes).unwrap());
+}
