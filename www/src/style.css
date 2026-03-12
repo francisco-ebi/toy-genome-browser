@@ -167,13 +167,7 @@ button:focus-visible {
   }
 }
 
-#game-of-life-canvas {
-  line-height: 8px;
-}
-
-#canvas {
-}
-
 .controls {
   display: flex;
+  justify-content: space-between;
 }

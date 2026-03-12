@@ -1,5 +1,6 @@
 import * as d3 from "d3";
-import { formatGenomicCoordinate, clamp } from "./utils";
+import { clamp } from "./utils";
+import { BehaviorSubject } from "rxjs";
 
 export class CanvasManager {
   canvasRef;
@@ -13,20 +14,17 @@ export class CanvasManager {
   zoomDirection = 0;
   maxSize = 0;
   geneExons = [];
+  view$ = new BehaviorSubject({ start: this.viewStart, end: this.viewEnd });
 
   constructor(canvasRef, region$, chromSize$, exons$) {
     if (!!canvasRef) {
       this.canvasRef = canvasRef;
       this.ctxRef = canvasRef.getContext("2d");
-      this.ctxRef.webkitImageSmoothingEnabled = false;
-      this.ctxRef.mozImageSmoothingEnabled = false;
-      this.ctxRef.imageSmoothingEnabled = false;
       this.setupListeners();
       this.setupRetinaScreens();
       region$.subscribe(({ start, end }) => {
         const margin = (end - start) * 0.2;
-        this.viewStart = start - margin;
-        this.viewEnd = end + margin;
+        this.updateViewValues(start - margin, end + margin);
         this.geneRegionStart = start;
         this.geneRegionEnd = end;
         this.regenerateScale();
@@ -42,6 +40,9 @@ export class CanvasManager {
       throw new Error("Invalid canvas ref");
     }
   }
+  get onViewUpdate() {
+    return this.view$;
+  }
   setupListeners() {
     this.canvasRef.addEventListener("mousedown", (e) => {
       this.startMovementX = e.clientX;
@@ -55,6 +56,9 @@ export class CanvasManager {
     this.canvasRef.addEventListener("wheel", this.onMouseWheel);
   }
   setupRetinaScreens() {
+    this.ctxRef.webkitImageSmoothingEnabled = false;
+    this.ctxRef.mozImageSmoothingEnabled = false;
+    this.ctxRef.imageSmoothingEnabled = false;
     const ratio = window.devicePixelRatio || 1;
     this.canvasRef.style.width = `${this.canvasRef.width}px`;
     this.canvasRef.style.height = `${this.canvasRef.height}px`;
@@ -70,38 +74,47 @@ export class CanvasManager {
       [0, this.canvasRef.clientWidth],
     );
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
+    console.log({ updatedRes: this.getDataResolution() });
     this.render();
   }
   getDataResolution() {
     return (this.viewEnd - this.viewStart) / this.canvasRef.clientWidth;
+  }
+  updateViewValues(newStart, newEnd) {
+    this.viewStart = Math.trunc(newStart);
+    this.viewEnd = Math.trunc(newEnd);
+    this.view$.next({ start: this.viewStart, end: this.viewEnd });
   }
   updateZooming(e) {
     this.zoomDirection = e.deltaY > 0 ? 1 : -1;
   }
   moveRegion(deltaX) {
     const bpDiff = Math.round(this.getDataResolution() * deltaX);
-    this.viewStart = clamp(this.viewStart + bpDiff, 0, this.maxSize);
-    this.viewEnd = clamp(this.viewEnd + bpDiff, 0, this.maxSize);
+    this.updateViewValues(
+      clamp(this.viewStart + bpDiff, 0, this.maxSize),
+      clamp(this.viewEnd + bpDiff, 0, this.maxSize),
+    );
     this.regenerateScale();
   }
   updateRegionValues(xPos) {
-    // const cursorPosInitial = this.viewStart + xPos * this.getDataResolution();
-    this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
+    const cursorPosPercentage = xPos / this.canvasRef.clientWidth;
     const currentBpWidth = this.viewEnd - this.viewStart;
-    const diff = currentBpWidth * 0.005;
+    const targetPos = this.viewStart + currentBpWidth * cursorPosPercentage;
+    this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
+    const diff = currentBpWidth * 0.01;
+    let newWindowSize;
     if (this.zoomDirection > 0) {
-      this.viewStart = clamp(this.viewStart + diff, 0, this.maxSize);
-      this.viewEnd = clamp(this.viewEnd - diff, 0, this.maxSize);
+      newWindowSize = currentBpWidth - diff;
     } else {
-      this.viewStart = clamp(this.viewStart - diff, 0, this.maxSize);
-      this.viewEnd = clamp(this.viewEnd + diff, 0, this.maxSize);
+      newWindowSize = currentBpWidth + diff;
     }
-    const cursorPosFinal = this.viewStart + xPos * this.getDataResolution();
-    /* console.log({
-      cursorPosFinal,
-      cursorPosInitial,
-      diff: cursorPosFinal - cursorPosInitial,
-    }); */
+    const newStart = clamp(
+      targetPos - newWindowSize * cursorPosPercentage,
+      0,
+      this.maxSize,
+    );
+    const newEnd = clamp(newStart + newWindowSize, 0, this.maxSize);
+    this.updateViewValues(newStart, newEnd);
     this.regenerateScale();
   }
   onMouseMove = (e) => {
@@ -171,6 +184,7 @@ export class CanvasManager {
   drawExons() {
     if (this.geneExons.length) {
       this.ctxRef.beginPath();
+      // if first exon doesn't start in start pos of gene, draw line
       if (this.geneExons?.[0].start > this.geneRegionStart) {
         this.ctxRef.moveTo(this.xScale(this.geneRegionStart), 45);
         this.ctxRef.lineTo(this.xScale(this.geneExons?.[0].start), 45);
@@ -190,6 +204,13 @@ export class CanvasManager {
           this.ctxRef.stroke();
         }
       });
+      // if last exon doesn't end in end pos of gene, draw line
+      if (this.geneExons[this.geneExons.length - 1].end < this.geneRegionEnd) {
+        const lastExonEnd = this.geneExons[this.geneExons.length - 1].end;
+        this.ctxRef.moveTo(this.xScale(lastExonEnd), 40);
+        this.ctxRef.lineTo(this.xScale(this.geneRegionEnd), 40);
+        this.ctxRef.stroke();
+      }
     }
   }
   drawFeatures() {

@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Genome Browser WASM</title>
   </head>
   <body>
@@ -10,6 +13,7 @@
       <h1 id="title">Toy Genome Browser</h1>
       <div class="controls">
         <select id="chromosome-selector"></select>
+        <span id="region"></span>
       </div>
       <canvas id="canvas" width="1200" height="300"></canvas>
     </div>
