@@ -74,7 +74,6 @@ export class CanvasManager {
       [0, this.canvasRef.clientWidth],
     );
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
-    console.log({ updatedRes: this.getDataResolution() });
     this.render();
   }
   getDataResolution() {
@@ -150,14 +149,14 @@ export class CanvasManager {
     this.ctxRef.lineTo(endX, yPos + tickSize);
     this.ctxRef.stroke();
 
-    this.ctxRef.textAlign = "center";
+    this.ctxRef.textAlign = "start";
     this.ctxRef.textBaseline = "top";
     this.ctxRef.fillStyle = "black";
     xTicks.forEach((d) => {
       this.ctxRef.beginPath();
       this.ctxRef.fillText(
         d.toLocaleString("en-US"),
-        this.xScale(d),
+        this.xScale(d) + 5,
         yPos + tickSize,
       );
     });
@@ -182,7 +181,7 @@ export class CanvasManager {
     this.ctxRef.fill();
   }
   drawExons() {
-    if (this.geneExons.length) {
+    if (this.geneExons.length && this.xScale) {
       this.ctxRef.beginPath();
       // if first exon doesn't start in start pos of gene, draw line
       if (this.geneExons?.[0].start > this.geneRegionStart) {
@@ -213,13 +212,24 @@ export class CanvasManager {
       }
     }
   }
+  drawGeneName() {
+    if (this.xScale) {
+      this.ctxRef.beginPath();
+      this.ctxRef.textAlign = "start";
+      this.ctxRef.textBaseline = "top";
+      this.ctxRef.fillStyle = "black";
+      const textXPos = Math.max(this.geneRegionStart, this.viewStart);
+      this.ctxRef.fillText("Agap1", this.xScale(textXPos), 52);
+    }
+  }
   drawFeatures() {
     const currentRes = this.getDataResolution();
     if (currentRes >= 400) {
       this.drawGenePosition();
-    } else if (currentRes >= 0.1) {
+    } else {
       this.drawExons();
     }
+    this.drawGeneName();
   }
   render() {
     this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
