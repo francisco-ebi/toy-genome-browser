@@ -82,17 +82,19 @@ export class GenomeBrowser {
   }
   async getGenesByPos(start, end) {
     const genes = await get_genes_by_pos(this.selectedChrom, start, end);
-    return genes.map((g) => {
-      return {
-        name: g.name,
-        start: g.start,
-        end: g.end,
-        strand: g.strand,
-        exons: g.transcripts.flatMap((t) =>
-          t.exons.map(([start, end]) => ({ start, end })),
-        ),
-      };
-    });
+    return genes
+      .map((g) => {
+        return {
+          name: g.name,
+          start: g.start,
+          end: g.end,
+          strand: g.strand,
+          exons: g.transcripts.flatMap((t) =>
+            t.exons.map(([start, end]) => ({ start, end })),
+          ),
+        };
+      })
+      .sort((g1, g2) => g1.start - g2.start);
   }
   setupPosListener(obs$) {
     if (obs$) {
