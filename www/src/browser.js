@@ -6,7 +6,7 @@ import {
   concat,
 } from "rxjs";
 import chromSizes from "./mm39-chrom-sizes.json";
-import { find_gene_pos, get_genes_by_pos } from "genome_browser_wasm";
+import { BrowserEngine } from "genome_browser_wasm";
 const exampleGenesByChr = {
   chr1: "Ugt1a10",
   chr2: "Cwc22",
@@ -45,11 +45,13 @@ export class GenomeBrowser {
   selectedGene = "Ugt1a10";
   onPosChange$;
   genes$ = new Subject();
+  browserEngine;
 
   constructor(canvasWidth) {
     this.canvasWidth = canvasWidth;
     this.setupChrSelector();
-    this.getGenePos();
+    this.browserEngine = new BrowserEngine();
+    this.loadEngineData();
   }
 
   get region() {
@@ -79,20 +81,22 @@ export class GenomeBrowser {
       this.chromSize$.next(
         chromSizes.find((chr) => chr.name === this.selectedChrom).size,
       );
-      this.getGenePos();
+      this.loadEngineData();
     });
   }
-  async getGenePos() {
-    const { start, end } = await find_gene_pos(
-      this.selectedChrom,
-      this.selectedGene,
-    );
+  async loadEngineData() {
+    await this.browserEngine.load_chromosome_data(this.selectedChrom);
+    console.log("Loaded data for", this.selectedChrom);
+    this.getGenePos();
+  }
+  getGenePos() {
+    const { start, end } = this.browserEngine.find_gene_pos(this.selectedGene);
     this.startPos = start;
     this.endPos = end;
     this.region$.next({ start, end });
   }
   async getGenesByPos(start, end) {
-    const genes = await get_genes_by_pos(this.selectedChrom, start, end);
+    const genes = this.browserEngine.get_genes_by_pos(start, end);
     return genes
       .map((g) => {
         return {
@@ -111,7 +115,7 @@ export class GenomeBrowser {
     if (obs$) {
       return concat(
         obs$.pipe(
-          debounceTime(200),
+          debounceTime(50),
           concatMap(({ start, end }) => this.getGenesByPos(start, end)),
         ),
         this.genes$,
