@@ -12,20 +12,17 @@ const LANE_HEIGHT = GENE_HEIGHT + TEXT_OFFSET + VERTICAL_PADDING;
 export class CanvasManager {
   canvasRef;
   ctxRef;
+  xScale;
+  genes = [];
+  laneCache = new Map();
+  maxSize = 0;
   startMovementX = 0;
   viewStart = 0;
   viewEnd = 0;
-  geneRegionStart = 0;
-  geneRegionEnd = 0;
-  xScale;
   zoomDirection = 0;
-  maxSize = 0;
-  geneExons = [];
   view$ = new BehaviorSubject({ start: this.viewStart, end: this.viewEnd });
-  genes = [];
-  laneCache = new Map();
 
-  constructor(canvasRef, region$, chromSize$, exons$) {
+  constructor(canvasRef, region$, chromSize$) {
     if (!!canvasRef) {
       this.canvasRef = canvasRef;
       this.ctxRef = canvasRef.getContext("2d");
@@ -34,16 +31,10 @@ export class CanvasManager {
       region$.subscribe(({ start, end }) => {
         const margin = (end - start) * 0.2;
         this.updateViewValues(start - margin, end + margin);
-        this.geneRegionStart = start;
-        this.geneRegionEnd = end;
         this.regenerateScale();
       });
       chromSize$.subscribe((maxSize) => {
         this.maxSize = maxSize;
-      });
-      exons$.subscribe((exons) => {
-        this.geneExons = exons.toSorted((e1, e2) => e1.start - e2.start);
-        this.render();
       });
     } else {
       throw new Error("Invalid canvas ref");
