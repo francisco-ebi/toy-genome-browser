@@ -1,6 +1,5 @@
 pub mod structures;
 pub mod preprocessing;
-pub mod search;
 
 use crate::preprocessing::{process_file};
 
