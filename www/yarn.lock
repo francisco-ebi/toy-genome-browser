@@ -1120,8 +1120,8 @@ __metadata:
 
 "genome_browser_wasm@file:../pkg::locator=genome-browser-wasm-app%40workspace%3A.":
   version: 0.1.0
-  resolution: "genome_browser_wasm@file:../pkg#../pkg::hash=54a102&locator=genome-browser-wasm-app%40workspace%3A."
-  checksum: 10c0/83fc823a178f4a390b69fd70ddf5efeddd839f8265b75c367aaacab771c4e39f19182aad65927dac01568486a12f24645f7b8f2055616b32873d695d2b516a48
+  resolution: "genome_browser_wasm@file:../pkg#../pkg::hash=83da57&locator=genome-browser-wasm-app%40workspace%3A."
+  checksum: 10c0/4f7f35e75ca9bbc1b53d250151919bfda4e0d21db7dbbf6b58443250c18c57a58130ee3be7dc77887706149591f9b5148bbef4cf49f10337b0d2104a4693431c
   languageName: node
   linkType: hard
 
