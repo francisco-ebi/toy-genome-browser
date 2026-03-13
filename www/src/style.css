@@ -167,6 +167,9 @@ button:focus-visible {
   }
 }
 
+#canvas {
+  border: 1px solid;
+}
 .controls {
   display: flex;
   justify-content: space-between;

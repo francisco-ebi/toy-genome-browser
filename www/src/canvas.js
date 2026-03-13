@@ -2,12 +2,12 @@ import * as d3 from "d3";
 import { clamp } from "./utils";
 import { BehaviorSubject } from "rxjs";
 
-const GENE_Y_POS = 20;
 const GENE_HEIGHT = 20;
-const INTRON_Y_POS = 40;
-const EXON_Y_POS = 30;
+const TEXT_OFFSET = 15;
+const VERTICAL_PADDING = 10;
+const MARGIN_TOP = 1;
 const EXON_HEIGHT = 20;
-const MARKER_SYMBOL_Y_POS = 52;
+const LANE_HEIGHT = GENE_HEIGHT + TEXT_OFFSET + VERTICAL_PADDING;
 
 export class CanvasManager {
   canvasRef;
@@ -23,6 +23,7 @@ export class CanvasManager {
   geneExons = [];
   view$ = new BehaviorSubject({ start: this.viewStart, end: this.viewEnd });
   genes = [];
+  laneCache = new Map();
 
   constructor(canvasRef, region$, chromSize$, exons$) {
     if (!!canvasRef) {
@@ -77,7 +78,7 @@ export class CanvasManager {
   setupGeneListener(geneObs$) {
     if (geneObs$) {
       geneObs$.subscribe((newGenes) => {
-        this.genes = newGenes;
+        this.genes = this.assignLanes(newGenes);
         this.ctxRef.clearRect(
           0,
           0,
@@ -97,6 +98,34 @@ export class CanvasManager {
     );
     this.ctxRef.clearRect(0, 0, this.canvasRef.width, this.canvasRef.height);
     this.render();
+  }
+  assignLanes(genes) {
+    const lanes = [];
+    return genes.map((gene) => {
+      if (this.laneCache.has(gene.name)) {
+        const currentLane = this.laneCache.get(gene.name);
+        while (lanes.length <= currentLane) lanes.push(0);
+        lanes[currentLane] = Math.max(lanes[currentLane], gene.end + 500);
+        return {
+          ...gene,
+          lane: currentLane,
+        };
+      }
+      let laneIndex = lanes.findIndex((end) => end < gene.start);
+      let geneLane;
+      if (laneIndex === -1) {
+        geneLane = lanes.length + 1;
+        lanes.push(gene.end + 500);
+      } else {
+        geneLane = laneIndex + 1;
+        lanes[laneIndex] = gene.end + 500;
+      }
+      this.laneCache.set(gene.name, geneLane);
+      return {
+        ...gene,
+        lane: geneLane,
+      };
+    });
   }
   getDataResolution() {
     return (this.viewEnd - this.viewStart) / this.canvasRef.clientWidth;
@@ -148,6 +177,15 @@ export class CanvasManager {
     this.updateRegionValues(e.clientX);
     this.render();
   };
+  drawGeneName = (xPos, yPos, geneName) => {
+    if (this.getDataResolution() < 2000) {
+      this.ctxRef.beginPath();
+      this.ctxRef.textAlign = "start";
+      this.ctxRef.fillStyle = "black";
+      const textXPos = Math.max(xPos, this.viewStart);
+      this.ctxRef.fillText(geneName, this.xScale(textXPos), yPos);
+    }
+  };
   drawXAxis(yPos, xExtent) {
     if (!this.xScale) {
       return;
@@ -185,76 +223,51 @@ export class CanvasManager {
   }
   drawGenesBoxes() {
     if (this.xScale) {
-      this.genes.forEach((gene, index) => {
+      this.genes.forEach((gene) => {
+        const boxYPos = MARGIN_TOP + gene.lane * LANE_HEIGHT;
         this.ctxRef.beginPath();
         const xStart = this.xScale(gene.start);
         const width = this.xScale(gene.end) - xStart;
-        this.ctxRef.rect(xStart, GENE_Y_POS * (index + 1), width, GENE_HEIGHT);
+        this.ctxRef.rect(xStart, boxYPos, width, GENE_HEIGHT);
         this.ctxRef.fill();
+        this.drawGeneName(gene.start, boxYPos + GENE_HEIGHT, gene.name);
       });
     }
   }
   drawExons() {
     if (this.xScale) {
-      this.genes.forEach((gene, index) => {
+      this.genes.forEach((gene) => {
         this.ctxRef.beginPath();
+        const exonYPos = MARGIN_TOP + gene.lane * LANE_HEIGHT;
+        const intronYPos = exonYPos + EXON_HEIGHT / 2;
+        this.drawGeneName(gene.start, exonYPos + EXON_HEIGHT, gene.name);
         // if first exon doesn't start in start pos of gene, draw line
         if (gene.exons[0].start > gene.start) {
-          this.ctxRef.moveTo(
-            this.xScale(gene.start),
-            INTRON_Y_POS * (index + 1),
-          );
-          this.ctxRef.lineTo(
-            this.xScale(gene.exons[0].start),
-            INTRON_Y_POS * (index + 1),
-          );
+          this.ctxRef.moveTo(this.xScale(gene.start), intronYPos);
+          this.ctxRef.lineTo(this.xScale(gene.exons[0].start), intronYPos);
           this.ctxRef.stroke();
         }
         gene.exons.forEach((exon, exonIndex) => {
           const exonStart = this.xScale(exon.start);
           const exonEnd = this.xScale(exon.end);
           const width = exonEnd - exonStart;
-          this.ctxRef.rect(
-            exonStart,
-            EXON_Y_POS * (index + 1),
-            width,
-            EXON_HEIGHT,
-          );
+          this.ctxRef.rect(exonStart, exonYPos, width, EXON_HEIGHT);
           this.ctxRef.fill();
           let nextExonStart = gene.exons[exonIndex + 1]?.start;
           if (nextExonStart) {
             nextExonStart = this.xScale(nextExonStart);
-            this.ctxRef.moveTo(exonEnd, INTRON_Y_POS * (index + 1));
-            this.ctxRef.lineTo(nextExonStart, INTRON_Y_POS * (index + 1));
+            this.ctxRef.moveTo(exonEnd, intronYPos);
+            this.ctxRef.lineTo(nextExonStart, intronYPos);
             this.ctxRef.stroke();
           }
         });
         // if last exon doesn't end in end pos of gene, draw line
         if (gene.exons[gene.exons.length - 1].end < gene.end) {
           const lastExonEnd = gene.exons[gene.exons.length - 1].end;
-          this.ctxRef.moveTo(
-            this.xScale(lastExonEnd),
-            INTRON_Y_POS * (index + 1),
-          );
-          this.ctxRef.lineTo(this.xScale(gene.end), INTRON_Y_POS * (index + 1));
+          this.ctxRef.moveTo(this.xScale(lastExonEnd), intronYPos);
+          this.ctxRef.lineTo(this.xScale(gene.end), intronYPos);
           this.ctxRef.stroke();
         }
-      });
-    }
-  }
-  drawGeneNames() {
-    if (this.xScale) {
-      this.genes.forEach((gene, index) => {
-        this.ctxRef.beginPath();
-        this.ctxRef.textAlign = "start";
-        this.ctxRef.textBaseline = "top";
-        this.ctxRef.fillStyle = "black";
-        const textXPos = Math.max(gene.start, this.viewStart);
-        this.ctxRef.fillText(
-          gene.name,
-          this.xScale(textXPos),
-          MARKER_SYMBOL_Y_POS * (index + 1),
-        );
       });
     }
   }
@@ -265,10 +278,9 @@ export class CanvasManager {
     } else {
       this.drawExons();
     }
-    this.drawGeneNames();
   }
   render() {
-    this.drawXAxis(1, [0, this.canvasRef.clientWidth]);
+    this.drawXAxis(0, [0, this.canvasRef.clientWidth]);
     this.drawFeatures();
   }
 }
