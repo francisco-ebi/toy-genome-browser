@@ -7,6 +7,30 @@ import {
 } from "rxjs";
 import chromSizes from "./mm39-chrom-sizes.json";
 import { find_gene_pos, get_genes_by_pos } from "genome_browser_wasm";
+const exampleGenesByChr = {
+  chr1: "Ugt1a10",
+  chr2: "Cwc22",
+  chr3: "Ctsk",
+  chr4: "Col9a2",
+  chr5: "Ttc28",
+  chr6: "Edem1",
+  chr7: "Myo7a",
+  chr8: "Syce2",
+  chr9: "Elovl5",
+  chr10: "Lrig3",
+  chr11: "Wnt3a",
+  chr12: "Twist1",
+  chr13: "Pitx1",
+  chr14: "Cpap",
+  chr15: "Myo10",
+  chr16: "Ahsg",
+  chr17: "Runx2",
+  chr18: "Fbn2",
+  chr19: "Uhrf2",
+  chrM: "mt-Nd1",
+  chrX: "Hdac8",
+  chrY: "Sry",
+};
 
 export class GenomeBrowser {
   canvasWidth;
@@ -51,9 +75,11 @@ export class GenomeBrowser {
 
     chromosomeSelector.addEventListener("change", (e) => {
       this.selectedChrom = e.target.value;
+      this.selectedGene = exampleGenesByChr[this.selectedChrom];
       this.chromSize$.next(
         chromSizes.find((chr) => chr.name === this.selectedChrom).size,
       );
+      this.getGenePos();
     });
   }
   async getGenePos() {
