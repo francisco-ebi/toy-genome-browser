@@ -50,7 +50,7 @@ impl BrowserEngine {
     return Ok(());
   }
 
-  pub fn find_gene_pos(self, marker_symbol: &str) -> Result<Region, JsValue> {
+  pub fn find_gene_pos(&self, marker_symbol: &str) -> Result<Region, JsValue> {
     let match_gene = self.gene_list.iter().find(|&gene| gene.name.eq(marker_symbol));
     match match_gene {
       Some(gene) => Ok(Region {
@@ -63,7 +63,7 @@ impl BrowserEngine {
       })
     }
   }
-  pub fn get_genes_by_pos(self, start: u32, end: u32) -> Result<JsValue, JsValue> {
+  pub fn get_genes_by_pos(&self, start: u32, end: u32) -> Result<JsValue, JsValue> {
     let filtered_genes: Vec<&Gene> = self.gene_list.iter().filter(|g| g.start <= end && g.end >= start).collect();
     return Ok(serde_wasm_bindgen::to_value(&filtered_genes).unwrap());
   }
