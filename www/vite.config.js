@@ -3,5 +3,6 @@ import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 
 export default defineConfig({
+  base: "/toy-genome-browser/",
   plugins: [wasm(), topLevelAwait()],
 });
