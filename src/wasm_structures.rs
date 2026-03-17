@@ -40,7 +40,7 @@ impl BrowserEngine {
   }
 
   pub async fn load_chromosome_data(&mut self, chr_name: &str) -> Result<(), JsValue> {
-    let url = format!("/chromosome-data/{}.bin", chr_name);
+    let url = format!("/toy-genome-browser/chromosome-data/{}.bin", chr_name);
     let data: Vec<u8> = wasm_structures::BrowserEngine::fetch_bin_data(url).await?;
     let gene_list: Vec<Gene> = bincode::deserialize(&data)
         .map_err(|e| JsValue::from_str(&format!("bincode error: {e}")))?;
