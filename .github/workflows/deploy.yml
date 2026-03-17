@@ -39,13 +39,16 @@ jobs:
         run: wasm-pack build
 
       - name: Install dependencies
-        run: cd www && yarn install --frozen-lockfile
+        working-directory: ./www
+        run: yarn install --frozen-lockfile
 
       - name: Build
+        working-directory: ./www
         run: yarn build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
+        working-directory: ./www
         with:
           path: ./dist
 
