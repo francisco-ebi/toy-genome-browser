@@ -40,7 +40,7 @@ jobs:
         run: wasm-pack build
 
       - name: Install dependencies
-        run: yarn install --frozen-lockfile
+        run: yarn install
         working-directory: ./www
 
       - name: Build
